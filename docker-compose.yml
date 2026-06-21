@@ -1,0 +1,86 @@
+version: '3.9'
+
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql_eval3
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend-node:
+    build:
+      context: ./backJs_Eval3
+      dockerfile: Dockerfile
+    container_name: backend_node_eval3
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8081
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: rootpassword
+      DB_NAME: users_db
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-net
+
+  backend-python:
+    build:
+      context: ./BackPy_Eval3
+      dockerfile: Dockerfile
+    container_name: backend_python_eval3
+    restart: unless-stopped
+    environment:
+      FLASK_ENV: production
+      PORT: 8082
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: rootpassword
+      DB_NAME: products_db
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-net
+
+  frontend:
+    build:
+      context: ./Front_Eval3
+      dockerfile: Dockerfile
+    container_name: frontend_eval3
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend-node
+      - backend-python
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
